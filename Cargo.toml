@@ -1,0 +1,10 @@
+[package]
+name = "linklike"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ggez = { version = "0.9.3", default-features = false, features = [
+    "c_dependencies",
+] }
+glam = { version = "0.24.0", features = ["mint"] }
