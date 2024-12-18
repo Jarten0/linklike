@@ -1,4 +1,5 @@
 use crate::level::{Level, LevelData};
+use ggez::graphics::Canvas;
 use ggez::{Context, GameResult};
 use std::collections::LinkedList;
 
@@ -11,7 +12,7 @@ pub trait Enemy {
 
     fn update(&mut self, level: &mut Level, ctx: &mut Context) -> GameResult;
 
-    fn draw(&mut self, level: &Level, ctx: &mut Context) -> GameResult;
+    fn draw(&mut self, level: &Level, ctx: &mut Context, canvas: &mut Canvas) -> GameResult;
 }
 
 pub struct EnemyContainer {
@@ -35,6 +36,30 @@ impl EnemyContainer {
     }
 
     pub(crate) fn update(level: &mut Level, ctx: &mut Context) -> GameResult {
-        todo!()
+        for enemy in level
+            .enemies
+            .enemies
+            .iter_mut()
+            .filter(|item| item.is_some())
+            .map(|value| value.as_mut().unwrap())
+        {
+            enemy.update(level, ctx)?;
+        }
+
+        Ok(())
+    }
+
+    pub(crate) fn draw(level: &mut Level, ctx: &mut Context, canvas: &mut Canvas) -> GameResult {
+        for enemy in level
+            .enemies
+            .enemies
+            .iter_mut()
+            .filter(|item| item.is_some())
+            .map(|value| value.as_mut().unwrap())
+        {
+            enemy.draw(level, ctx, canvas)?;
+        }
+
+        Ok(())
     }
 }

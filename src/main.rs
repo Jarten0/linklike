@@ -2,10 +2,9 @@ use ggez::event::EventHandler;
 use ggez::graphics::{Canvas, Color};
 use ggez::Context;
 use glam::Vec2;
-use level::{Entity, Level};
+use level::Level;
 use player::Protag;
 
-pub mod ecs;
 pub mod enemies;
 pub mod item;
 pub mod level;

@@ -61,6 +61,24 @@ impl Protag {
     }
 }
 
+impl Entity for Protag {
+    fn access(level: &mut Level) -> &mut Self
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
+}
+
+impl GlobalUpdate for Protag {
+    fn update(level: &mut Level, ctx: &mut Context)
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
+}
+
 pub struct ProtagController;
 
 static PLAYER_SPEED: f32 = 6.0;

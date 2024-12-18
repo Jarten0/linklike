@@ -1,4 +1,3 @@
-use crate::ecs::Entity;
 use crate::enemies::{basic_enemy::BasicEnemy, Enemy, EnemyContainer};
 use crate::player::Protag;
 use ggez::graphics::Canvas;
@@ -41,14 +40,6 @@ impl Level {
         Protag::draw(self, canvas);
 
         Ok(())
-    }
-
-    pub fn get<T: Entity>(&mut self) -> Option<&mut T> {
-        T::access(self)
-    }
-
-    pub fn get_opt<T: Entity>(&mut self) -> &mut Option<T> {
-        T::access_value(self)
     }
 }
 
