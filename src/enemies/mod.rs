@@ -16,13 +16,13 @@ pub trait Enemy {
 }
 
 pub struct EnemyContainer {
-    pub enemies: LinkedList<Option<Box<dyn Enemy>>>,
+    pub container: Vec<Option<Box<dyn Enemy>>>,
 }
 
 impl EnemyContainer {
     pub fn new() -> Self {
         Self {
-            enemies: LinkedList::new(),
+            container: Vec::new(),
         }
     }
 
@@ -31,33 +31,25 @@ impl EnemyContainer {
             let enemy_result = enemy_data(level, ctx)
                 .err()
                 .map(|err| panic!("Enemy init failed [{}]", err));
-            level.enemies.enemies.push_back(enemy_result);
+            level.enemies.container.push(enemy_result);
         }
     }
 
     pub(crate) fn update(level: &mut Level, ctx: &mut Context) -> GameResult {
-        for enemy in level
-            .enemies
-            .enemies
-            .iter_mut()
-            .filter(|item| item.is_some())
-            .map(|value| value.as_mut().unwrap())
-        {
+        for i in 0..level.enemies.container.len() {
+            let mut enemy = level.enemies.container[i].take().unwrap();
             enemy.update(level, ctx)?;
+            level.enemies.container[i].insert(enemy);
         }
 
         Ok(())
     }
 
     pub(crate) fn draw(level: &mut Level, ctx: &mut Context, canvas: &mut Canvas) -> GameResult {
-        for enemy in level
-            .enemies
-            .enemies
-            .iter_mut()
-            .filter(|item| item.is_some())
-            .map(|value| value.as_mut().unwrap())
-        {
+        for i in 0..level.enemies.container.len() {
+            let mut enemy = level.enemies.container[i].take().unwrap();
             enemy.draw(level, ctx, canvas)?;
+            level.enemies.container[i].insert(enemy);
         }
 
         Ok(())

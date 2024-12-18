@@ -5,6 +5,7 @@ use glam::Vec2;
 use level::Level;
 use player::Protag;
 
+pub mod collision;
 pub mod enemies;
 pub mod item;
 pub mod level;
@@ -52,6 +53,18 @@ pub enum Direction {
     Down,
     Left,
     Right,
+}
+
+impl Direction {
+    /// Explicit cast to [`glam::Vec2`] since [`Into`] is too inconvenient to use explicitly
+    pub fn to_vec(self) -> Vec2 {
+        self.into()
+    }
+
+    /// Gets an angle value
+    pub fn to_angle(self) -> f32 {
+        self.to_vec().ang
+    }
 }
 
 impl From<Direction> for glam::Vec2 {
