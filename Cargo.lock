@@ -434,6 +434,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "const"
+version = "0.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "80aae2bf993fac3451fd6f1be4e05954fec1cd6eb5d76e4a46363608e5a7cff3"
+
+[[package]]
 name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1150,6 +1156,7 @@ checksum = "0717cef1bc8b636c6e1c1bbdefc09e6322da8a9321966e8928ef80d20f7f770f"
 name = "linklike"
 version = "0.1.0"
 dependencies = [
+ "const",
  "ggez",
  "glam",
 ]

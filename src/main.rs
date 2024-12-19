@@ -63,7 +63,7 @@ impl Direction {
 
     /// Gets an angle value
     pub fn to_angle(self) -> f32 {
-        self.to_vec().ang
+        f32::to_degrees(self.to_vec().angle_between(Direction::Right.to_vec()))
     }
 }
 

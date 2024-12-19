@@ -37,7 +37,9 @@ impl EnemyContainer {
 
     pub(crate) fn update(level: &mut Level, ctx: &mut Context) -> GameResult {
         for i in 0..level.enemies.container.len() {
-            let mut enemy = level.enemies.container[i].take().unwrap();
+            let Some(mut enemy) = level.enemies.container[i].take() else {
+                continue;
+            };
             enemy.update(level, ctx)?;
             level.enemies.container[i].insert(enemy);
         }
@@ -47,7 +49,9 @@ impl EnemyContainer {
 
     pub(crate) fn draw(level: &mut Level, ctx: &mut Context, canvas: &mut Canvas) -> GameResult {
         for i in 0..level.enemies.container.len() {
-            let mut enemy = level.enemies.container[i].take().unwrap();
+            let Some(mut enemy) = level.enemies.container[i].take() else {
+                continue;
+            };
             enemy.draw(level, ctx, canvas)?;
             level.enemies.container[i].insert(enemy);
         }
