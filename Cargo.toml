@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+bevy_ecs = "0.15.0"
+bevy_reflect = { version = "0.15.0", features = ["glam"] }
 const = "0.0.0"
 ggez = { version = "0.9.3", default-features = false, features = [
     "c_dependencies",

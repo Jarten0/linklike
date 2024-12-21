@@ -1,4 +1,5 @@
 use crate::Direction;
+use bevy_reflect::Reflect;
 use ggez::graphics::{
     Canvas, Color, DrawParam, GraphicsContext, Mesh, MeshData, Quad, Rect, Vertex,
 };
@@ -17,10 +18,20 @@ pub enum HitboxType<'a, 'string, 'frame, 'hitbox> {
 }
 
 // Hitboxes can be rotated around an origin
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Reflect, PartialEq)]
 pub struct Hitbox {
+    #[reflect(ignore)]
     rect: Rect,
     direction: Direction,
+}
+
+impl Default for Hitbox {
+    fn default() -> Self {
+        Self {
+            rect: Default::default(),
+            direction: Direction::Right,
+        }
+    }
 }
 
 impl Hitbox {
@@ -59,7 +70,9 @@ impl Hitbox {
         match other {
             HitboxType::Singular(single) => self.colliding_single(&single, offset, other_offset),
             HitboxType::Compound(compound) => self.colliding_frame(&compound, offset, other_offset),
-            HitboxType::String(_, _) => todo!(),
+            HitboxType::String(string, index) => {
+                self.colliding_frame(string.0[*index], offset, other_offset)
+            }
         }
     }
 
@@ -142,7 +155,8 @@ pub static TEST_HITBOX_STRING: HitboxFrameString = HitboxFrameString::new(&[
 /// See [`Hitbox`] for details on each individual hitbox.
 ///
 /// Also see [`HitboxFrameString`] for a set of [`HitboxFrame`]'s that can be interchanged frame-by-frame.
-pub struct HitboxFrame<'hitbox>(pub &'hitbox [Hitbox], Rect);
+#[derive(Debug, Default, Reflect, Clone, PartialEq)]
+pub struct HitboxFrame<'hitbox>(pub &'hitbox [Hitbox], #[reflect(ignore)] Rect);
 
 #[inline]
 const fn min(a: f32, b: f32) -> f32 {
@@ -270,6 +284,7 @@ pub type StaticHitboxFrameString = HitboxFrameString<'static, 'static, 'static>;
 ///
 /// An example of this would be a fighting game attack, with the "frame data".
 /// Each frame has a set of hitboxes, and
+#[derive(Debug, Default, Reflect, Clone, PartialEq)]
 pub struct HitboxFrameString<'string, 'frame, 'hitbox>(pub &'string [&'frame HitboxFrame<'hitbox>]);
 
 impl<'string, 'frame, 'hitbox> HitboxFrameString<'string, 'frame, 'hitbox> {

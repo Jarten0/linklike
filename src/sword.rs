@@ -1,35 +1,54 @@
 use crate::collision::{Hitbox, HitboxFrame, HitboxFrameString, StaticHitboxFrameString};
+use crate::enemies::Enemy;
 use crate::level::Level;
 use crate::Direction;
-use ggez::graphics::Canvas;
+use bevy_reflect::Reflect;
 use ggez::graphics::DrawParam;
 use ggez::graphics::Quad;
 use ggez::graphics::Rect;
+use ggez::graphics::{Canvas, Color};
 use ggez::input::keyboard::KeyCode;
 use ggez::Context;
 use glam::Vec2;
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Sword {
-    pub keyframes: &'static [Rect],
     pub state: SwordState,
+    // #[reflect(ignore)]
+    pub keyframes: &'static [Rect],
+    // #[reflect(ignore)]
     pub swing: &'static StaticHitboxFrameString,
 }
 
-pub enum SwordState {
-    Inactive,
-    Active { frame: usize, direction: Direction },
+impl Default for Sword {
+    fn default() -> Self {
+        Self {
+            keyframes: Default::default(),
+            state: Default::default(),
+            swing: &SWORD_SWING,
+        }
+    }
 }
 
+#[derive(Debug, Default, Reflect, Clone, PartialEq)]
+pub enum SwordState {
+    #[default]
+    Inactive,
+    Active {
+        frame: usize,
+        direction: Direction,
+    },
+}
+
+pub static SWORD_SWING: HitboxFrameString = HitboxFrameString::new(&[
+    &HitboxFrame::new(&[Hitbox::point_size(Vec2::new(0.0, 80.0), 40.0)]),
+    &HitboxFrame::new(&[Hitbox::point_size(Vec2::new(60.0, 40.0), 40.0)]),
+    &HitboxFrame::new(&[Hitbox::point_size(Vec2::new(80.0, 0.0), 40.0)]),
+    &HitboxFrame::new(&[Hitbox::point_size(Vec2::new(60.0, -40.0), 40.0)]),
+    &HitboxFrame::new(&[Hitbox::point_size(Vec2::new(0.0, -80.0), 40.0)]),
+]);
 impl Sword {
     pub(crate) const fn new() -> Self {
-        pub static SWORD_SWING: HitboxFrameString = HitboxFrameString::new(&[
-            &HitboxFrame::new(&[Hitbox::point_size(Vec2::new(0.0, 80.0), 40.0)]),
-            &HitboxFrame::new(&[Hitbox::point_size(Vec2::new(60.0, 40.0), 40.0)]),
-            &HitboxFrame::new(&[Hitbox::point_size(Vec2::new(80.0, 0.0), 40.0)]),
-            &HitboxFrame::new(&[Hitbox::point_size(Vec2::new(60.0, -40.0), 40.0)]),
-            &HitboxFrame::new(&[Hitbox::point_size(Vec2::new(0.0, -80.0), 40.0)]),
-        ]);
-
         pub(crate) static KEYFRAMES: [Rect; 8] = [
             Rect::new(-80., -40., 80., 80.),
             Rect::new(-40., -80., 80., 80.),
@@ -96,15 +115,20 @@ impl Sword {
                 //         .dest(level.protag.position + (level.protag.scale / 2.))
                 //         .z(-1),
                 // );
-                let color = sword.swing.colliding(
-                    frame,
-                    level.enemies.container.first().unwrap(),
-                    level.protag.position,
-                    level.enemies.container.first().unwrap().position,
-                );
-                sword
-                    .swing
-                    .draw(&mut ctx.gfx, canvas, frame, level.protag.position, color)
+                // let color = if let Some(other) = level.enemies.container.first().unwrap_or(&None) {
+                //     let other = crate::enemies::basic_enemy::BasicEnemy::downcast(other);
+                //      sword.swing.colliding(
+                //         frame,
+                //         other,
+                //         level.protag.position,
+                //         level.enemies.container.first().unwrap().position,
+                //     ).then_some(Color::RED).unwrap_or(Color::WHITE)
+                // } else {
+                //     Color::BLACK
+                // }
+                // sword
+                //     .swing
+                //     .draw(&mut ctx.gfx, canvas, frame, level.protag.position, color)
             }
         }
         canvas.draw(

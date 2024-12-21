@@ -1,32 +1,50 @@
 use super::Protag;
-use crate::Direction;
+use crate::collision::HitboxType;
+use crate::enemies::basic_enemy::BasicEnemy;
+use crate::level::{Access, Level};
+use crate::{level, Direction};
+use bevy_reflect::Reflect;
 use ggez::input::keyboard::{KeyCode, KeyboardContext};
 use glam::Vec2;
 
+#[derive(Debug, Reflect)]
 pub struct ProtagController {
     pub can_move: bool,
     pub can_turn: bool,
+    pub hurt: bool,
 }
 
 pub(crate) static PLAYER_SPEED: f32 = 6.0;
 
 impl ProtagController {
-    pub fn update(protag: &mut Protag, ctx: &mut ggez::Context) {
+    pub fn update(level: &mut Level, ctx: &mut ggez::Context) {
         let input = get_input_axis(&ctx.keyboard);
 
-        if protag.controller.can_turn {
-            protag.direction = get_direction(input, protag.direction)
+        if level.protag.controller.can_turn {
+            level.protag.direction = get_direction(input, level.protag.direction)
         }
 
-        if protag.controller.can_move {
-            protag.position += input.normalize_or_zero() * PLAYER_SPEED
+        if level.protag.controller.can_move {
+            level.protag.position += input.normalize_or_zero() * PLAYER_SPEED
         }
+
+        let basic_enemy = BasicEnemy::access_mut(&mut level.enemies, "basic_enemy").unwrap();
+        if level.protag.hurtbox.colliding(
+            &HitboxType::Singular(&basic_enemy.hurtbox),
+            level.protag.position,
+            basic_enemy.position,
+        ) {
+            level.protag.controller.hurt = true;
+        } else {
+            level.protag.controller.hurt = false;
+        };
     }
 
     pub(crate) fn new() -> Self {
         Self {
             can_move: true,
             can_turn: true,
+            hurt: false,
         }
     }
 }

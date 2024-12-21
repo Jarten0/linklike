@@ -3,6 +3,7 @@ use crate::item::ItemType;
 use crate::level::{Level, ProtagData};
 use crate::sword::Sword;
 use crate::Direction;
+use bevy_reflect::Reflect;
 use controller::ProtagController;
 use ggez::graphics::{Canvas, Color};
 use ggez::{Context, GameResult};
@@ -12,8 +13,11 @@ use inventory::Inventory;
 mod controller;
 mod inventory;
 
+#[derive(Debug, Reflect)]
 pub struct Protag {
+    #[reflect(ignore)]
     pub position: glam::Vec2,
+    #[reflect(ignore)]
     pub scale: glam::Vec2,
     pub direction: Direction,
     pub hurtbox: Hitbox,
@@ -42,7 +46,7 @@ impl Protag {
             ItemType::Bomb => todo!(),
         }
 
-        controller::ProtagController::update(&mut level.protag, ctx);
+        controller::ProtagController::update(level, ctx);
     }
 
     pub fn draw(level: &mut Level, ctx: &mut Context, canvas: &mut Canvas) -> GameResult {
@@ -50,10 +54,10 @@ impl Protag {
             &mut ctx.gfx,
             canvas,
             level.protag.position,
-            Some(Color::RED),
+            level.protag.controller.hurt.then_some(Color::RED),
         )?;
 
-        Inventory::draw(level, canvas);
+        Inventory::draw(level, ctx, canvas);
 
         Ok(())
     }

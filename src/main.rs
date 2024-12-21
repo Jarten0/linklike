@@ -1,3 +1,4 @@
+use bevy_reflect::Reflect;
 use ggez::event::EventHandler;
 use ggez::graphics::{Canvas, Color};
 use ggez::Context;
@@ -47,7 +48,7 @@ impl EventHandler for Game {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Reflect, PartialEq)]
 pub enum Direction {
     Up,
     Down,
