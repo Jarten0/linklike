@@ -1,3 +1,7 @@
+use std::borrow::Borrow;
+use std::convert::AsRef;
+use std::iter::Iterator;
+
 use crate::Direction;
 use bevy_reflect::Reflect;
 use ggez::graphics::{
@@ -60,18 +64,35 @@ impl Hitbox {
     /// Rotates the hitbox so that it points in the given direction.
     ///
     /// Does nothing if the hitbox is already pointing in that direction.
-    pub fn as_direction(mut self, direction: Direction) -> Self {
-        self.rect
-            .rotate(direction.to_angle() - self.direction.to_angle());
+    pub const fn as_direction(mut self, direction: Direction) -> Self {
+        // self.rect
+        //     .rotate(direction.to_angle() - self.direction.to_angle());
+        let mut clockwise_rotations = (direction as i32) - (self.direction as i32) % 4;
+
+        while clockwise_rotations > 0 {
+            self.rotate_clockwise();
+            clockwise_rotations -= 1;
+        }
+
         self
     }
 
-    pub fn colliding(&self, other: &HitboxType, offset: Vec2, other_offset: Vec2) -> bool {
+    #[inline]
+    pub const fn rotate_clockwise(&mut self) {
+        self.rect = Rect {
+            x: -self.rect.y,
+            y: self.rect.x,
+            w: self.rect.h,
+            h: self.rect.w,
+        };
+    }
+
+    pub fn colliding(&self, other: HitboxType, offset: Vec2, other_offset: Vec2) -> bool {
         match other {
             HitboxType::Singular(single) => self.colliding_single(&single, offset, other_offset),
             HitboxType::Compound(compound) => self.colliding_frame(&compound, offset, other_offset),
             HitboxType::String(string, index) => {
-                self.colliding_frame(string.0[*index], offset, other_offset)
+                self.colliding_frame(string.0[index], offset, other_offset)
             }
         }
     }
@@ -202,14 +223,30 @@ impl<'hitbox> HitboxFrame<'hitbox> {
         bounding_box
     }
 
-    pub fn colliding(&self, other: &HitboxType, offset: Vec2, other_offset: Vec2) -> bool {
+    /// Returns a list of hitboxes, rotated as the given direction from the given frame.
+    ///
+    /// [`HitboxFrame`] stores a reference to the hitboxes, and does not store them itself.
+    /// So something else needs to take ownership of the hitboxes. Thus, this function returns
+    /// an iterator which you should collect into somewhere yourself. Then, you can use
+    /// [`HitboxFrame::new`] with a slice of the collected hitboxes to get the new [`HitboxFrame`]
+    pub fn as_direction<B>(&self, direction: Direction) -> (B)
+    where
+        B: FromIterator<Hitbox> + AsRef<[Hitbox]> + 'hitbox,
+    {
+        self.0
+            .into_iter()
+            .map(|value| value.clone().as_direction(direction))
+            .collect::<B>()
+    }
+
+    pub fn colliding(&self, other: HitboxType, offset: Vec2, other_offset: Vec2) -> bool {
         match other {
-            HitboxType::Singular(single) => self.colliding_single(&single, offset, other_offset),
+            HitboxType::Singular(single) => self.colliding_single(single, offset, other_offset),
             HitboxType::Compound(compound) => self.colliding_frame(compound, offset, other_offset),
             HitboxType::String(string, index) => {
                 let compound = string
                     .0
-                    .get(*index)
+                    .get(index)
                     .expect("expected a valid index that correlates to a frame");
                 self.colliding_frame(compound, offset, other_offset)
             }
@@ -227,7 +264,7 @@ impl<'hitbox> HitboxFrame<'hitbox> {
 
     pub fn colliding_frame(
         &self,
-        compound: &&HitboxFrame,
+        compound: &HitboxFrame,
         offset: Vec2,
         other_offset: Vec2,
     ) -> bool {
@@ -263,7 +300,7 @@ impl<'hitbox> HitboxFrame<'hitbox> {
 }
 
 impl HitboxType<'_, '_, '_, '_> {
-    pub fn is_colliding(&self, other: &HitboxType, offset: Vec2, other_offset: Vec2) -> bool {
+    pub fn is_colliding(&self, other: HitboxType, offset: Vec2, other_offset: Vec2) -> bool {
         match self {
             HitboxType::Singular(singular) => singular.colliding(other, offset, other_offset),
             HitboxType::Compound(compound) => compound.colliding(other, offset, other_offset),
@@ -280,10 +317,25 @@ impl HitboxType<'_, '_, '_, '_> {
 
 pub type StaticHitboxFrameString = HitboxFrameString<'static, 'static, 'static>;
 
+// impl StaticHitboxFrameString {
+//     pub fn get_rotated_versions(self) -> [Self; 4] {
+//         [
+//             self.as_direction(Direction::Right),
+//             self.as_direction(Direction::Up),
+//             self.as_direction(Direction::Left),
+//             self.as_direction(Direction::Down),
+//         ]
+//     }
+// }
+
 /// A set of hitbox sets, to be iterated through frame by frame.
 ///
 /// An example of this would be a fighting game attack, with the "frame data".
-/// Each frame has a set of hitboxes, and
+/// Each frame has a set of hitboxes, which detail a shape that can be used for complex attacks or collision.
+/// Each string has a set of frames, which can be used to "animate" a shape that changes form across time, or by other metrics.
+///
+/// Since both this and [`HitboxFrame`] operate off of borrowed data, it's easy to reuse hitbox data wherever needed.
+///
 #[derive(Debug, Default, Reflect, Clone, PartialEq)]
 pub struct HitboxFrameString<'string, 'frame, 'hitbox>(pub &'string [&'frame HitboxFrame<'hitbox>]);
 
@@ -296,10 +348,20 @@ impl<'string, 'frame, 'hitbox> HitboxFrameString<'string, 'frame, 'hitbox> {
         self.0.len()
     }
 
+    pub fn as_direction<B>(self, direction: Direction) -> B
+    where
+        B: FromIterator<Hitbox> + AsRef<[Hitbox]> + Iterator<Item = Hitbox>,
+    {
+        self.0
+            .iter()
+            .flat_map(|value| value.as_direction::<B>(direction))
+            .collect()
+    }
+
     pub fn colliding(
         &self,
         frame: usize,
-        other: &HitboxType,
+        other: HitboxType,
         offset: Vec2,
         other_offset: Vec2,
     ) -> bool {

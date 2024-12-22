@@ -1,8 +1,10 @@
-use crate::level::{Access, Get, Level, LevelData};
+use crate::collision::HitboxType;
+use crate::level::{Level, LevelData};
 use basic_enemy::BasicEnemy;
 use bevy_reflect::{DynamicTyped, PartialReflect, Reflect};
 use ggez::graphics::Canvas;
 use ggez::{Context, GameResult};
+use glam::Vec2;
 
 pub mod basic_enemy;
 
@@ -15,6 +17,10 @@ pub trait Enemy {
     fn update(&mut self, level: &mut Level, ctx: &mut Context) -> GameResult;
 
     fn draw(&mut self, level: &Level, ctx: &mut Context, canvas: &mut Canvas) -> GameResult;
+
+    fn get_hitbox(&self) -> Option<(HitboxType, Vec2)> {
+        None
+    }
 }
 
 #[derive(Debug, Reflect)]

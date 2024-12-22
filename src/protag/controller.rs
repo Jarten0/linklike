@@ -1,11 +1,14 @@
-use super::Protag;
 use crate::collision::HitboxType;
 use crate::enemies::basic_enemy::BasicEnemy;
-use crate::level::{Access, Level};
-use crate::{level, Direction};
-use bevy_reflect::Reflect;
+use crate::enemies::Enemy;
+use crate::get::Access;
+use crate::level::Level;
+use crate::Direction;
+use bevy_reflect::{GetField, Reflect};
 use ggez::input::keyboard::{KeyCode, KeyboardContext};
 use glam::Vec2;
+
+use super::Protag;
 
 #[derive(Debug, Reflect)]
 pub struct ProtagController {
@@ -28,16 +31,37 @@ impl ProtagController {
             level.protag.position += input.normalize_or_zero() * PLAYER_SPEED
         }
 
-        let basic_enemy = BasicEnemy::access_mut(&mut level.enemies, "basic_enemy").unwrap();
-        if level.protag.hurtbox.colliding(
-            &HitboxType::Singular(&basic_enemy.hurtbox),
-            level.protag.position,
-            basic_enemy.position,
-        ) {
-            level.protag.controller.hurt = true;
-        } else {
-            level.protag.controller.hurt = false;
+        Self::handle_enemy_collision(
+            &mut level.protag,
+            level
+                .enemies
+                .get_field_mut::<Option<BasicEnemy>>("basic_enemy")
+                .unwrap()
+                .as_mut()
+                .unwrap(),
+        )
+        .unwrap();
+
+        // let basic_enemy = BasicEnemy::access_mut(&mut level.enemies, "basic_enemy").unwrap();
+    }
+
+    pub(crate) fn handle_enemy_collision(
+        protag: &mut Protag,
+        enemy: &mut impl Enemy,
+    ) -> Result<bool, ()> {
+        let Some((enemy_hitbox, enemy_offset)) = enemy.get_hitbox() else {
+            return Err(());
         };
+        if protag
+            .hurtbox
+            .colliding(enemy_hitbox, protag.position, enemy_offset)
+        {
+            protag.controller.hurt = true;
+            Ok(true)
+        } else {
+            protag.controller.hurt = false;
+            Ok(false)
+        }
     }
 
     pub(crate) fn new() -> Self {

@@ -1,8 +1,11 @@
+use std::collections::HashMap;
+
 use crate::collision::{Hitbox, HitboxFrame, HitboxFrameString, StaticHitboxFrameString};
+use crate::enemies::basic_enemy::BasicEnemy;
 use crate::enemies::Enemy;
 use crate::level::Level;
 use crate::Direction;
-use bevy_reflect::Reflect;
+use bevy_reflect::{GetField, Reflect};
 use ggez::graphics::DrawParam;
 use ggez::graphics::Quad;
 use ggez::graphics::Rect;
@@ -11,23 +14,13 @@ use ggez::input::keyboard::KeyCode;
 use ggez::Context;
 use glam::Vec2;
 
-#[derive(Debug, Clone, PartialEq)]
+use super::ProtagItem;
+
+#[derive(Debug, Clone, Reflect, PartialEq)]
 pub struct Sword {
     pub state: SwordState,
-    // #[reflect(ignore)]
-    pub keyframes: &'static [Rect],
-    // #[reflect(ignore)]
-    pub swing: &'static StaticHitboxFrameString,
-}
-
-impl Default for Sword {
-    fn default() -> Self {
-        Self {
-            keyframes: Default::default(),
-            state: Default::default(),
-            swing: &SWORD_SWING,
-        }
-    }
+    #[reflect(ignore)]
+    pub swing: [StaticHitboxFrameString; 4],
 }
 
 #[derive(Debug, Default, Reflect, Clone, PartialEq)]
@@ -47,23 +40,30 @@ pub static SWORD_SWING: HitboxFrameString = HitboxFrameString::new(&[
     &HitboxFrame::new(&[Hitbox::point_size(Vec2::new(60.0, -40.0), 40.0)]),
     &HitboxFrame::new(&[Hitbox::point_size(Vec2::new(0.0, -80.0), 40.0)]),
 ]);
+
 impl Sword {
     pub(crate) const fn new() -> Self {
-        pub(crate) static KEYFRAMES: [Rect; 8] = [
-            Rect::new(-80., -40., 80., 80.),
-            Rect::new(-40., -80., 80., 80.),
-            Rect::new(0., -100., 80., 80.),
-            Rect::new(20., -100., 80., 80.),
-            Rect::new(20., -80., 80., 80.),
-            Rect::new(20., -40., 80., 80.),
-            Rect::new(20., 0., 80., 80.),
-            Rect::new(20., 0., 80., 80.),
-        ];
         Self {
-            keyframes: &KEYFRAMES,
             state: SwordState::Inactive,
-            swing: &SWORD_SWING,
+            swing: todo!(),
         }
+    }
+}
+
+impl ProtagItem for Sword {
+    fn active(&mut self) -> bool {
+        match self.state {
+            SwordState::Inactive => false,
+            SwordState::Active { .. } => true,
+        }
+    }
+
+    fn can_move(&mut self) -> bool {
+        !self.active()
+    }
+
+    fn can_turn(&mut self) -> bool {
+        !self.active()
     }
 }
 
@@ -73,20 +73,18 @@ impl Sword {
         match &mut sword.state {
             SwordState::Inactive => {
                 if ctx.keyboard.is_key_just_pressed(KeyCode::Space) {
-                    level.protag.controller.can_move = false;
-                    level.protag.controller.can_turn = false;
                     sword.state = SwordState::Active {
                         direction: level.protag.direction,
                         frame: 0,
                     }
                 }
             }
-            SwordState::Active { direction, frame } => {
+            SwordState::Active {
+                direction: _,
+                frame,
+            } => {
                 *frame += 1;
-                if *frame >= sword.keyframes.len() {
-                    level.protag.controller.can_move = true;
-                    level.protag.controller.can_turn = true;
-
+                if *frame >= sword.swing.len() {
                     sword.state = SwordState::Inactive;
                     return;
                 }
@@ -115,20 +113,26 @@ impl Sword {
                 //         .dest(level.protag.position + (level.protag.scale / 2.))
                 //         .z(-1),
                 // );
-                // let color = if let Some(other) = level.enemies.container.first().unwrap_or(&None) {
-                //     let other = crate::enemies::basic_enemy::BasicEnemy::downcast(other);
-                //      sword.swing.colliding(
-                //         frame,
-                //         other,
-                //         level.protag.position,
-                //         level.enemies.container.first().unwrap().position,
-                //     ).then_some(Color::RED).unwrap_or(Color::WHITE)
-                // } else {
-                //     Color::BLACK
-                // }
-                // sword
-                //     .swing
-                //     .draw(&mut ctx.gfx, canvas, frame, level.protag.position, color)
+                let color = if let Some(other) = level
+                    .enemies
+                    .get_field::<Option<BasicEnemy>>("basic_enemy")
+                    .unwrap_or(&mut None)
+                {
+                    sword.swing[*direction as usize]
+                        .colliding(
+                            *frame,
+                            other.get_hitbox().unwrap().0,
+                            level.protag.position,
+                            other.get_hitbox().unwrap().1,
+                        )
+                        .then_some(Color::RED)
+                        .unwrap_or(Color::WHITE)
+                } else {
+                    Color::BLACK
+                };
+                sword.swing[*direction as usize]
+                    .draw(&mut ctx.gfx, canvas, *frame, level.protag.position, color)
+                    .unwrap()
             }
         }
         canvas.draw(

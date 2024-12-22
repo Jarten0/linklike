@@ -1,8 +1,9 @@
-use super::Enemy;
-use crate::collision::Hitbox;
+use super::{Enemy, EnemyContainer};
+use crate::collision::{Hitbox, HitboxType};
+use crate::get::Get;
 use crate::level::Level;
-use bevy_reflect::Reflect;
-use ggez::graphics::{Canvas, Color, Drawable, Quad, Rect};
+use bevy_reflect::{GetField, Reflect};
+use ggez::graphics::{Canvas, Color, Rect};
 use ggez::{Context, GameError, GameResult};
 use glam::Vec2;
 
@@ -43,5 +44,9 @@ impl Enemy for BasicEnemy {
     fn draw(&mut self, level: &Level, ctx: &mut Context, canvas: &mut Canvas) -> GameResult {
         self.hurtbox
             .draw(&mut ctx.gfx, canvas, self.position, Some(Color::CYAN))
+    }
+
+    fn get_hitbox(&self) -> Option<(crate::collision::HitboxType, Vec2)> {
+        Some((HitboxType::Singular(&self.hurtbox), self.position))
     }
 }

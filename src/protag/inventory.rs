@@ -1,14 +1,16 @@
+use bevy_reflect::prelude::ReflectDefault;
 use bevy_reflect::Reflect;
 use ggez::graphics::Canvas;
 use ggez::Context;
 
-use crate::item::ItemType;
 use crate::level::Level;
-use crate::sword::Sword;
+
+use super::items::sword::Sword;
+use super::items::ItemType;
 
 #[derive(Debug, Reflect)]
 pub struct Inventory {
-    #[reflect(ignore)]
+    // #[reflect(ignore)]
     pub sword: Sword,
     // #[reflect(ignore)]
     pub current_item: ItemType,

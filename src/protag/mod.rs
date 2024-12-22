@@ -1,7 +1,5 @@
 use crate::collision::Hitbox;
-use crate::item::ItemType;
 use crate::level::{Level, ProtagData};
-use crate::sword::Sword;
 use crate::Direction;
 use bevy_reflect::Reflect;
 use controller::ProtagController;
@@ -9,9 +7,12 @@ use ggez::graphics::{Canvas, Color};
 use ggez::{Context, GameResult};
 use glam::Vec2;
 use inventory::Inventory;
+use items::sword::Sword;
+use items::ItemType;
 
-mod controller;
-mod inventory;
+pub mod controller;
+pub mod inventory;
+pub mod items;
 
 #[derive(Debug, Reflect)]
 pub struct Protag {
