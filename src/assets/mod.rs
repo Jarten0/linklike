@@ -1,15 +1,12 @@
 use glam::Vec2;
-use player::{InventoryData, SwordData};
-
-use crate::level::ProtagData;
+use player::{InventoryData, ProtagData, SwordData};
 
 pub mod player;
 
 /// Anything can borrow this thing for 'level.
-// #[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct StaticAssets {
     pub protag: ProtagData,
-    pub inventory: InventoryData,
 }
 
 impl StaticAssets {
@@ -17,9 +14,9 @@ impl StaticAssets {
         Self {
             protag: ProtagData {
                 start_pos: Vec2::ONE * 500.0,
-            },
-            inventory: InventoryData {
-                sword: SwordData {},
+                inventory: InventoryData {
+                    sword: SwordData {},
+                },
             },
         }
     }

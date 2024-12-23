@@ -1,5 +1,5 @@
 use crate::collision::HitboxType;
-use crate::level::{Level, LevelData};
+use crate::level::Level;
 use basic_enemy::BasicEnemy;
 use bevy_reflect::{DynamicTyped, PartialReflect, Reflect};
 use ggez::graphics::Canvas;
@@ -37,7 +37,7 @@ impl EnemyContainer {
         }
     }
 
-    pub fn init(level: &mut Level, level_data: &LevelData, ctx: &mut Context) {
+    pub fn init(level: &mut Level, ctx: &mut Context) {
         BasicEnemy::create(level, ctx).unwrap();
     }
 

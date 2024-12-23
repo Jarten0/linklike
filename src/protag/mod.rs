@@ -1,5 +1,6 @@
+use crate::assets::player::ProtagData;
 use crate::collision::Hitbox;
-use crate::level::{Level, ProtagData};
+use crate::level::Level;
 use crate::Direction;
 use bevy_reflect::Reflect;
 use controller::ProtagController;

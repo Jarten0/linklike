@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use super::ProtagItem;
 use crate::collision::{Hitbox, HitboxFrame, HitboxFrameString, StaticHitboxFrameString};
 use crate::enemies::basic_enemy::BasicEnemy;
 use crate::enemies::Enemy;
@@ -8,13 +7,16 @@ use crate::Direction;
 use bevy_reflect::{GetField, Reflect};
 use ggez::graphics::DrawParam;
 use ggez::graphics::Quad;
-use ggez::graphics::Rect;
 use ggez::graphics::{Canvas, Color};
 use ggez::input::keyboard::KeyCode;
 use ggez::Context;
 use glam::Vec2;
 
-use super::ProtagItem;
+impl SwordData {
+    pub fn new() -> Self {
+        Self { swing: [] }
+    }
+}
 
 #[derive(Debug, Clone, Reflect, PartialEq)]
 pub struct Sword {
@@ -42,10 +44,10 @@ pub static SWORD_SWING: HitboxFrameString = HitboxFrameString::new(&[
 ]);
 
 impl Sword {
-    pub(crate) const fn new() -> Self {
+    pub fn new(data: SwordData) -> Self {
         Self {
             state: SwordState::Inactive,
-            swing: todo!(),
+            swing: data,
         }
     }
 }

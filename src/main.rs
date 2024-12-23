@@ -1,4 +1,7 @@
 use core::f32;
+use std::cell::OnceCell;
+use std::ops::Deref;
+use std::sync::OnceLock;
 
 use assets::StaticAssets;
 use bevy_reflect::Reflect;
@@ -21,12 +24,14 @@ fn main() {
         .build()
         .expect("could not build :(");
 
-    // Allocated onto the stack afaik
     let mut static_assets: StaticAssets = StaticAssets::new();
     Level::initialize_assets(&mut static_assets);
 
-    // Box::from_raw can work with stack references as well???
-    let leak = Box::leak::<'static>(Box::new(static_assets));
+    let leak: &'static StaticAssets = Box::leak::<'static>(Box::new(static_assets));
+
+    STATIC_ASSETS_REF
+        .set(leak)
+        .expect("Something assigned to STATIC_ASSETS_REF!");
 
     let state = Game::new(&mut ctx, leak);
 
@@ -39,12 +44,26 @@ struct Game {
     static_assets: &'static StaticAssets,
 }
 
+static STATIC_ASSETS_REF: OnceLock<&'static StaticAssets> = OnceLock::new();
+
 impl Game {
     fn new(ctx: &mut ggez::Context, static_assets: &'static StaticAssets) -> Self {
         Self {
             level: Level::new(ctx, &static_assets),
             static_assets,
         }
+    }
+
+    pub fn static_assets() -> &'static StaticAssets {
+        STATIC_ASSETS_REF
+            .get()
+            .expect("Could not get static assets! It's not been fully initialized yet.")
+    }
+
+    pub fn get_static_assets() -> Option<&'static StaticAssets> {
+        // STATIC_ASSETS_REF is only assigned after StaticAssets is initialized
+        // Thus, this returns None when they have not finished initializing yet.
+        STATIC_ASSETS_REF.get().map(core::ops::Deref::deref)
     }
 }
 

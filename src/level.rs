@@ -14,6 +14,7 @@ pub struct Level {
     pub protag: Protag,
     pub enemies: EnemyContainer,
     #[reflect(ignore)]
+    #[reflect(default = "crate::Game::static_assets")]
     pub static_assets: &'static StaticAssets,
     i: usize,
 }
@@ -36,7 +37,7 @@ impl Level {
             static_assets: assets,
         };
 
-        EnemyContainer::init(&mut level, &assets, ctx);
+        EnemyContainer::init(&mut level, ctx);
 
         level
     }
@@ -69,13 +70,4 @@ impl Level {
 
         Ok(())
     }
-}
-
-pub struct LevelData {
-    pub protag: ProtagData,
-    pub enemies: Vec<(fn(&mut Level, &mut Context) -> GameResult, &'static str)>,
-}
-
-pub struct ProtagData {
-    pub start_pos: glam::Vec2,
 }
