@@ -1,10 +1,8 @@
-use std::convert::AsRef;
-
-use ggez::graphics::Rect;
-use glam::Vec2;
-
-use crate::collision::{Hitbox, HitboxFrameRef, HitboxFrameStringRef, StaticHitboxFrameString};
+use crate::collision::{Hitbox, HitboxFrameRef, HitboxFrameString, HitboxFrameStringRef};
 use crate::Direction;
+use glam::Vec2;
+use std::borrow::Borrow;
+use std::convert::AsRef;
 
 #[derive(Debug, Clone)]
 pub struct ProtagData {
@@ -19,40 +17,30 @@ pub struct InventoryData {
 
 #[derive(Debug, Clone)]
 pub struct SwordData {
-    swing: [StaticHitboxFrameString; 4],
+    swing: [HitboxFrameString; 4],
 }
 
-pub fn new() -> ProtagData {
-    let hitboxes = [Hitbox::new(Rect::one())];
-    let hitbox_frames = &[&HitboxFrameRef::new(&hitboxes)];
-    let hitbox_frame_string = HitboxFrameStringRef::new(hitbox_frames);
+impl ProtagData {
+    pub fn new() -> ProtagData {
+        static SWING_HITBOXES: HitboxFrameStringRef =
+            HitboxFrameStringRef::new(&[HitboxFrameRef::new(&[
+                Hitbox::point_size(Vec2::ZERO, 40.0),
+                Hitbox::point_size(Vec2::ONE, 40.0),
+                Hitbox::point_size(Vec2::new(100.0, 200.0), 40.0),
+            ])]);
 
-    let collect: Vec<Vec<Hitbox>> = HitboxFrameStringRef::as_direction::<
-        Vec<Vec<Hitbox>>,
-        Vec<Hitbox>,
-    >(hitbox_frame_string, Direction::Right);
+        let swing = [
+            SWING_HITBOXES.to_direction(Direction::Right),
+            SWING_HITBOXES.to_direction(Direction::Up),
+            SWING_HITBOXES.to_direction(Direction::Left),
+            SWING_HITBOXES.to_direction(Direction::Down),
+        ];
 
-    let directions = [
-        HitboxFrameStringRef::new(&collect),
-        // hitbox_frame_string.as_direction(Direction::Right),
-        // hitbox_frame_string.as_direction(Direction::Right),
-        // hitbox_frame_string.as_direction(Direction::Right),
-    ];
-    // let strings = [
-    //     // HitboxFrameString::new(&di)
-    // ]
-    ProtagData {
-        inventory: InventoryData {
-            sword: SwordData {
-                swing: [
-                    todo!(),
-                    todo!(),
-                    todo!(),
-                    todo!(),
-                    // HitboxFrameString::new(&strings)
-                ],
+        ProtagData {
+            inventory: InventoryData {
+                sword: SwordData { swing },
             },
-        },
-        start_pos: Vec2::ONE * 500.0,
+            start_pos: Vec2::ONE * 500.0,
+        }
     }
 }
