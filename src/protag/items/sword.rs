@@ -1,5 +1,5 @@
 use super::ProtagItem;
-use crate::collision::{Hitbox, HitboxFrame, HitboxFrameString, StaticHitboxFrameString};
+use crate::collision::{Hitbox, HitboxFrameRef, HitboxFrameStringRef, StaticHitboxFrameString};
 use crate::enemies::basic_enemy::BasicEnemy;
 use crate::enemies::Enemy;
 use crate::level::Level;
@@ -35,12 +35,12 @@ pub enum SwordState {
     },
 }
 
-pub static SWORD_SWING: HitboxFrameString = HitboxFrameString::new(&[
-    &HitboxFrame::new(&[Hitbox::point_size(Vec2::new(0.0, 80.0), 40.0)]),
-    &HitboxFrame::new(&[Hitbox::point_size(Vec2::new(60.0, 40.0), 40.0)]),
-    &HitboxFrame::new(&[Hitbox::point_size(Vec2::new(80.0, 0.0), 40.0)]),
-    &HitboxFrame::new(&[Hitbox::point_size(Vec2::new(60.0, -40.0), 40.0)]),
-    &HitboxFrame::new(&[Hitbox::point_size(Vec2::new(0.0, -80.0), 40.0)]),
+pub static SWORD_SWING: HitboxFrameStringRef = HitboxFrameStringRef::new(&[
+    &HitboxFrameRef::new(&[Hitbox::point_size(Vec2::new(0.0, 80.0), 40.0)]),
+    &HitboxFrameRef::new(&[Hitbox::point_size(Vec2::new(60.0, 40.0), 40.0)]),
+    &HitboxFrameRef::new(&[Hitbox::point_size(Vec2::new(80.0, 0.0), 40.0)]),
+    &HitboxFrameRef::new(&[Hitbox::point_size(Vec2::new(60.0, -40.0), 40.0)]),
+    &HitboxFrameRef::new(&[Hitbox::point_size(Vec2::new(0.0, -80.0), 40.0)]),
 ]);
 
 impl Sword {

@@ -9,15 +9,36 @@ use std::borrow::Borrow;
 use std::convert::AsRef;
 use std::iter::Iterator;
 
-pub enum HitboxType<'a, 'string, 'frame, 'hitbox> {
+pub enum HitboxTypea {
     /// A singular hitbox.
-    Singular(&'a Hitbox),
+    Singular(Hitbox),
     /// A compound of hitboxes, consisting of at least one (but typically more) hitboxes.
-    Compound(&'a HitboxFrame<'hitbox>),
+    Compound(NonStaticHitboxFrame),
     /// A list of compound hitboxes, to be iterated upon frame by frame.
     ///
     /// The second item (usize) is the current frame that should be active.
-    String(&'a HitboxFrameString<'string, 'frame, 'hitbox>, usize),
+    String(NonStaticHitboxFrameString, usize),
+}
+
+impl HitboxTypea {
+    pub fn as_ref(&self) -> HitboxType {
+        match self {
+            HitboxTypea::Singular(singular) => HitboxType::Singular(singular),
+            HitboxTypea::Compound(compound) => HitboxType::Compound(compound.borrow()),
+            HitboxTypea::String(string, us) => HitboxType::String(string.borrow(), *us),
+        }
+    }
+}
+
+pub enum HitboxType<'hitbox, 'string, 'frame> {
+    /// A singular hitbox.
+    Singular(&'hitbox Hitbox),
+    /// A compound of hitboxes, consisting of at least one (but typically more) hitboxes.
+    Compound(HitboxFrameRef<'frame>),
+    /// A list of compound hitboxes, to be iterated upon frame by frame.
+    ///
+    /// The second item (usize) is the current frame that should be active.
+    String(HitboxFrameStringRef<'string, 'frame>, usize),
 }
 
 // Hitboxes can be rotated around an origin
@@ -111,7 +132,12 @@ impl Hitbox {
         ]))
     }
 
-    pub fn colliding_frame(&self, other: &HitboxFrame, offset: Vec2, other_offset: Vec2) -> bool {
+    pub fn colliding_frame(
+        &self,
+        other: &HitboxFrameRef,
+        offset: Vec2,
+        other_offset: Vec2,
+    ) -> bool {
         let does_this_self_hitbox_overlap_with_other =
             |a: bool, other: &Hitbox| a || self.colliding_single(other, offset, other_offset);
 
@@ -149,20 +175,102 @@ impl Hitbox {
     }
 }
 
-pub static TEST_HITBOX_STRING: HitboxFrameString = HitboxFrameString::new(&[
-    &HitboxFrame::new(&[
+#[derive(Debug, Default, Reflect, Clone, PartialEq)]
+pub struct NonStaticHitboxFrame(Vec<Hitbox>);
+
+impl NonStaticHitboxFrame {
+    fn from_hitboxes(value: &[Hitbox]) -> Self {
+        HitboxFrameRef::new(value).to_owned()
+    }
+
+    fn borrow(&self) -> HitboxFrameRef {
+        HitboxFrameRef::new(&self.0)
+    }
+}
+
+#[derive(Debug, Default, Reflect, PartialEq)]
+pub struct NonStaticHitboxFrameString(Vec<NonStaticHitboxFrame>);
+
+impl NonStaticHitboxFrameString {
+    pub fn from_frames(zero: &[NonStaticHitboxFrame]) -> Self {
+        Self(
+            zero.iter()
+                .map(|value| value.clone())
+                .collect::<Vec<NonStaticHitboxFrame>>(),
+        )
+    }
+
+    pub fn from_hitboxes(zero: &[&[Hitbox]]) -> Self {
+        let zero: Vec<NonStaticHitboxFrame> = zero
+            .into_iter()
+            .map(|value| NonStaticHitboxFrame::from_hitboxes(value))
+            .collect();
+
+        Self(zero)
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn as_direction<B, I>(
+        hitbox_frame_string: HitboxFrameStringRef<'_, '_>,
+        direction: Direction,
+    ) -> B
+    where
+        B: for<'a> FromIterator<I>,
+        I: FromIterator<Hitbox> + AsRef<[Hitbox]>,
+    {
+        hitbox_frame_string
+            .0
+            .iter()
+            .map(|value: &HitboxFrameRef<'_>| value.as_direction(direction))
+            .collect::<B>()
+    }
+
+    pub fn colliding(
+        &self,
+        frame: usize,
+        other: HitboxType,
+        offset: Vec2,
+        other_offset: Vec2,
+    ) -> bool {
+        HitboxType::String(self.borrow(), frame).is_colliding(other, offset, other_offset)
+    }
+
+    pub fn draw(
+        &self,
+        gfx: &mut GraphicsContext,
+        canvas: &mut Canvas,
+        index: usize,
+        offset: Vec2,
+        color: Color,
+    ) -> GameResult {
+        if let Some(frame) = self.0.get(index) {
+            frame.borrow().draw(gfx, canvas, offset, color)?;
+        }
+        Ok(())
+    }
+
+    pub fn borrow(&self) -> BorrowedHitboxFrameString {
+        BorrowedHitboxFrameString::new(self)
+    }
+}
+
+pub static TEST_HITBOX_STRING: HitboxFrameStringRef = HitboxFrameStringRef::new(&[
+    &HitboxFrameRef::new(&[
         Hitbox::point_size(Vec2::ZERO, 5.0),
         Hitbox::point_size(Vec2::new(25.0, 25.0), 10.0),
     ]),
-    &HitboxFrame::new(&[
+    &HitboxFrameRef::new(&[
         Hitbox::point_size(Vec2::new(50.0, 25.0), 15.0),
         Hitbox::point_size(Vec2::new(75.0, 25.0), 20.0),
     ]),
-    &HitboxFrame::new(&[
+    &HitboxFrameRef::new(&[
         Hitbox::point_size(Vec2::new(50.0, 25.0), 15.0),
         Hitbox::point_size(Vec2::new(75.0, 25.0), 20.0),
     ]),
-    &HitboxFrame::new(&[
+    &HitboxFrameRef::new(&[
         Hitbox::point_size(Vec2::new(50.0, 25.0), 15.0),
         Hitbox::point_size(Vec2::new(75.0, 25.0), 20.0),
     ]),
@@ -175,8 +283,8 @@ pub static TEST_HITBOX_STRING: HitboxFrameString = HitboxFrameString::new(&[
 /// See [`Hitbox`] for details on each individual hitbox.
 ///
 /// Also see [`HitboxFrameString`] for a set of [`HitboxFrame`]'s that can be interchanged frame-by-frame.
-#[derive(Debug, Default, Reflect, PartialEq)]
-pub struct HitboxFrame<'hitbox>(pub &'hitbox [Hitbox], #[reflect(ignore)] Rect);
+#[derive(Debug, Default, Reflect, Clone, Copy, PartialEq)]
+pub struct HitboxFrameRef<'hitbox>(pub &'hitbox [Hitbox], #[reflect(ignore)] Rect);
 
 #[inline]
 const fn min(a: f32, b: f32) -> f32 {
@@ -194,9 +302,9 @@ const fn max(a: f32, b: f32) -> f32 {
     }
 }
 
-impl<'hitbox> HitboxFrame<'hitbox> {
+impl<'hitbox> HitboxFrameRef<'hitbox> {
     pub const fn new(hitboxes: &'hitbox [Hitbox]) -> Self {
-        Self(hitboxes, HitboxFrame::calculate_bounding_box(hitboxes))
+        Self(hitboxes, HitboxFrameRef::calculate_bounding_box(hitboxes))
     }
 
     pub const fn calculate_bounding_box(hitboxes: &'hitbox [Hitbox]) -> Rect {
@@ -263,7 +371,7 @@ impl<'hitbox> HitboxFrame<'hitbox> {
 
     pub fn colliding_frame(
         &self,
-        compound: &HitboxFrame,
+        compound: HitboxFrameRef,
         offset: Vec2,
         other_offset: Vec2,
     ) -> bool {
@@ -298,15 +406,13 @@ impl<'hitbox> HitboxFrame<'hitbox> {
     }
 }
 
-impl ToOwned for HitboxFrame<'_> {
-    type Owned = NonStaticHitboxFrame;
-
-    fn to_owned(&self) -> Self::Owned {
+impl HitboxFrameRef<'_> {
+    fn to_owned(&self) -> NonStaticHitboxFrame {
         NonStaticHitboxFrame::from_hitboxes(self.0)
     }
 }
 
-impl HitboxType<'_, '_, '_, '_> {
+impl HitboxType<'_, '_, '_> {
     pub fn is_colliding(&self, other: HitboxType, offset: Vec2, other_offset: Vec2) -> bool {
         match self {
             HitboxType::Singular(singular) => singular.colliding(other, offset, other_offset),
@@ -322,7 +428,6 @@ impl HitboxType<'_, '_, '_, '_> {
     }
 }
 
-
 /// A set of hitbox sets, to be iterated through frame by frame.
 ///
 /// An example of this would be a fighting game attack, with the "frame data".
@@ -331,11 +436,11 @@ impl HitboxType<'_, '_, '_, '_> {
 ///
 /// Since both this and [`HitboxFrame`] operate off of borrowed data, it's easy to reuse hitbox data wherever needed.
 ///
-#[derive(Debug, Default, Reflect, Clone, PartialEq)]
-pub struct HitboxFrameString<'string, 'hitbox>(pub &'string [HitboxFrame<'hitbox>]);
+#[derive(Debug, Default, Reflect, Clone, Copy, PartialEq)]
+pub struct HitboxFrameStringRef<'string, 'hitbox>(pub &'string [HitboxFrameRef<'hitbox>]);
 
-impl<'string, 'hitbox> HitboxFrameString<'string, 'hitbox> {
-    pub const fn new(zero: &'string [HitboxFrame<'hitbox>]) -> Self {
+impl<'string, 'hitbox> HitboxFrameStringRef<'string, 'hitbox> {
+    pub const fn new(zero: &'string [HitboxFrameRef<'hitbox>]) -> Self {
         Self(zero)
     }
 
@@ -344,7 +449,7 @@ impl<'string, 'hitbox> HitboxFrameString<'string, 'hitbox> {
     }
 
     pub fn as_direction<B, I>(
-        hitbox_frame_string: HitboxFrameString<'_, '_>,
+        hitbox_frame_string: HitboxFrameStringRef<'_, '_>,
         direction: Direction,
     ) -> B
     where
@@ -354,7 +459,7 @@ impl<'string, 'hitbox> HitboxFrameString<'string, 'hitbox> {
         hitbox_frame_string
             .0
             .iter()
-            .map(|value: &HitboxFrame<'_>| value.as_direction(direction))
+            .map(|value: &HitboxFrameRef<'_>| value.as_direction(direction))
             .collect::<B>()
     }
 
@@ -365,7 +470,7 @@ impl<'string, 'hitbox> HitboxFrameString<'string, 'hitbox> {
         offset: Vec2,
         other_offset: Vec2,
     ) -> bool {
-        HitboxType::String(&self, frame).is_colliding(other, offset, other_offset)
+        HitboxType::String(*self, frame).is_colliding(other, offset, other_offset)
     }
 
     pub fn draw(
@@ -383,89 +488,19 @@ impl<'string, 'hitbox> HitboxFrameString<'string, 'hitbox> {
     }
 }
 
-#[derive(Debug, Default, Reflect, Clone, PartialEq)]
-pub struct NonStaticHitboxFrame(Vec<Hitbox>);
+pub struct BorrowedHitboxFrameString<'a>(Vec<HitboxFrameRef<'a>>);
 
-impl NonStaticHitboxFrame {
-    fn from_hitboxes(value: &[Hitbox]) -> Self {
-        HitboxFrame::new(value).to_owned()
-    }
-}
-
-impl<'hitbox> Borrow<HitboxFrame<'hitbox>> for NonStaticHitboxFrame {
-    fn borrow(&self) -> &HitboxFrame<'hitbox> {
-        let hitbox_frame = HitboxFrame::new(&self.0);
-        &hitbox_frame
-    }
-}
-
-#[derive(Debug, Default, Reflect, PartialEq)]
-pub struct NonStaticHitboxFrameString(Vec<NonStaticHitboxFrame>);
-
-impl NonStaticHitboxFrameString {
-    pub fn from_frames(zero: &[NonStaticHitboxFrame]) -> Self {
-        Self(
-            zero.iter()
-                .map(|value| value.clone())
-                .collect::<Vec<NonStaticHitboxFrame>>(),
-        )
-    }
-
-    pub fn from_hitboxes(zero: &[&[Hitbox]]) -> Self {
-        let zero: Vec<NonStaticHitboxFrame> = zero
-            .into_iter()
-            .map(|value| NonStaticHitboxFrame::from_hitboxes(value))
-            .collect();
-
-        Self(zero)
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn as_direction<B, I>(
-        hitbox_frame_string: HitboxFrameString<'_, '_>,
-        direction: Direction,
-    ) -> B
-    where
-        B: for<'a> FromIterator<I>,
-        I: FromIterator<Hitbox> + AsRef<[Hitbox]>,
-    {
-        hitbox_frame_string
+impl<'a> BorrowedHitboxFrameString<'a> {
+    pub fn new(borrowing: &'a NonStaticHitboxFrameString) -> Self {
+        let collect = borrowing
             .0
             .iter()
-            .map(|value: &HitboxFrame<'_>| value.as_direction(direction))
-            .collect::<B>()
+            .map(|value| value.borrow())
+            .collect::<Vec<HitboxFrameRef>>();
+        Self(collect)
     }
 
-    pub fn colliding(
-        &self,
-        frame: usize,
-        other: HitboxType,
-        offset: Vec2,
-        other_offset: Vec2,
-    ) -> bool {
-        HitboxType::String(&self, frame).is_colliding(other, offset, other_offset)
-    }
-
-    pub fn draw(
-        &self,
-        gfx: &mut GraphicsContext,
-        canvas: &mut Canvas,
-        index: usize,
-        offset: Vec2,
-        color: Color,
-    ) -> GameResult {
-        if let Some(frame) = self.0.get(index) {
-            HitboxFrameString::.draw(gfx, canvas, offset, color)?;
-        }
-        Ok(())
-    }
-}
-
-impl<'string, 'hitbox> Borrow<HitboxFrameString<'string, 'hitbox>> for NonStaticHitboxFrameString {
-    fn borrow(&self) -> &HitboxFrameString<'string, 'hitbox> {
-        todo!()
+    pub fn borrow(&self) -> HitboxFrameStringRef {
+        HitboxFrameStringRef::new(&self.0)
     }
 }
