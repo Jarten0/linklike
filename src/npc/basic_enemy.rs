@@ -1,7 +1,9 @@
-use super::{Enemy, EnemyContainer};
+use super::basic_stats::{self, Damage, Defense, Health};
+use super::{Enemy, EnemyContainer, Stat, Stats};
 use crate::collision::{Hitbox, HitboxType};
 use crate::get::Get;
 use crate::level::Level;
+use crate::Direction;
 use bevy_reflect::{GetField, Reflect};
 use ggez::graphics::{Canvas, Color, Rect};
 use ggez::{Context, GameError, GameResult};
@@ -14,6 +16,7 @@ pub struct BasicEnemy {
     #[reflect(ignore)]
     pub position: glam::Vec2,
     pub hurtbox: Hitbox,
+    pub stats: Stats,
 }
 
 pub struct OverheadAttack {
@@ -29,7 +32,12 @@ impl Enemy for BasicEnemy {
     {
         match level.enemies.basic_enemy.replace(BasicEnemy {
             position: Vec2::default(),
-            hurtbox: Hitbox::point_size(Vec2::ZERO, 30.0),
+            hurtbox: Hitbox::point_size(Vec2::ZERO, 30.0, Direction::Right),
+            stats: Stats::from(vec![
+                Box::new(Health(10.0)) as Box<dyn Stat>,
+                Box::new(Defense(5.)),
+                Box::new(Damage(7.)),
+            ]),
         }) {
             Some(some) => Err(GameError::CustomError("Enemy already exists".to_string())),
             None => Ok(()),
@@ -49,4 +57,6 @@ impl Enemy for BasicEnemy {
     fn get_hitbox(&self) -> Option<(crate::collision::HitboxType, Vec2)> {
         Some((HitboxType::Singular(&self.hurtbox), self.position))
     }
+
+    fn on_hit(&mut self, stats: Stats) {}
 }

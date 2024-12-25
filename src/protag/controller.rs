@@ -1,8 +1,8 @@
 use crate::collision::HitboxType;
-use crate::enemies::basic_enemy::BasicEnemy;
-use crate::enemies::Enemy;
 use crate::get::Access;
 use crate::level::Level;
+use crate::npc::basic_enemy::BasicEnemy;
+use crate::npc::Enemy;
 use crate::Direction;
 use bevy_reflect::{GetField, Reflect};
 use ggez::input::keyboard::{KeyCode, KeyboardContext};

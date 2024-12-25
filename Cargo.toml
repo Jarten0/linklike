@@ -11,3 +11,4 @@ ggez = { version = "0.9.3", default-features = false, features = [
     "c_dependencies",
 ] }
 glam = { version = "0.24.0", features = ["mint"] }
+serde = "1.0.216"

@@ -35,7 +35,7 @@ impl Protag {
             inventory: inventory::Inventory::new(),
             controller: ProtagController::new(),
             scale: [80.0, 80.0].into(),
-            hurtbox: Hitbox::point_size(Vec2::ZERO, 80.0),
+            hurtbox: Hitbox::point_size(Vec2::ZERO, 80.0, Direction::Right),
         }
     }
 

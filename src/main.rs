@@ -14,9 +14,9 @@ use protag::Protag;
 
 pub mod assets;
 pub mod collision;
-pub mod enemies;
 pub mod get;
 pub mod level;
+pub mod npc;
 pub mod protag;
 
 fn main() {
@@ -104,8 +104,8 @@ impl Direction {
     pub const fn to_angle(self) -> f32 {
         // f32::to_degrees(self.to_vec().angle_between(Direction::Right.to_vec()))
         match self {
-            Direction::Up => f32::consts::PI / 2.,
-            Direction::Down => -f32::consts::PI / 2.,
+            Direction::Up => -f32::consts::PI / 2.,
+            Direction::Down => f32::consts::PI / 2.,
             Direction::Left => f32::consts::PI,
             Direction::Right => 0.0,
         }

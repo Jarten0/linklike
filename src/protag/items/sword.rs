@@ -1,9 +1,10 @@
 use super::ProtagItem;
-use crate::collision::{Hitbox, HitboxFrameRef, HitboxFrameStringRef, StaticHitboxFrameString};
-use crate::enemies::basic_enemy::BasicEnemy;
-use crate::enemies::Enemy;
+use crate::collision::{Hitbox, HitboxFrameRef, HitboxFrameString, HitboxFrameStringRef};
+use crate::npc::basic_enemy::BasicEnemy;
+use crate::npc::Enemy;
 use crate::level::Level;
-use crate::Direction;
+use crate::{Direction, Game};
+use bevy_reflect::prelude::ReflectDefault;
 use bevy_reflect::{GetField, Reflect};
 use ggez::graphics::DrawParam;
 use ggez::graphics::Quad;
@@ -12,17 +13,21 @@ use ggez::input::keyboard::KeyCode;
 use ggez::Context;
 use glam::Vec2;
 
-impl SwordData {
-    pub fn new() -> Self {
-        Self { swing: [] }
-    }
-}
-
 #[derive(Debug, Clone, Reflect, PartialEq)]
+#[reflect(Default)]
 pub struct Sword {
     pub state: SwordState,
     #[reflect(ignore)]
-    pub swing: [StaticHitboxFrameString; 4],
+    pub swing: &'static [HitboxFrameString; 4],
+}
+
+impl Default for Sword {
+    fn default() -> Self {
+        Self {
+            state: Default::default(),
+            swing: &Game::static_assets().protag.inventory.sword.swing,
+        }
+    }
 }
 
 #[derive(Debug, Default, Reflect, Clone, PartialEq)]
@@ -33,23 +38,6 @@ pub enum SwordState {
         frame: usize,
         direction: Direction,
     },
-}
-
-pub static SWORD_SWING: HitboxFrameStringRef = HitboxFrameStringRef::new(&[
-    &HitboxFrameRef::new(&[Hitbox::point_size(Vec2::new(0.0, 80.0), 40.0)]),
-    &HitboxFrameRef::new(&[Hitbox::point_size(Vec2::new(60.0, 40.0), 40.0)]),
-    &HitboxFrameRef::new(&[Hitbox::point_size(Vec2::new(80.0, 0.0), 40.0)]),
-    &HitboxFrameRef::new(&[Hitbox::point_size(Vec2::new(60.0, -40.0), 40.0)]),
-    &HitboxFrameRef::new(&[Hitbox::point_size(Vec2::new(0.0, -80.0), 40.0)]),
-]);
-
-impl Sword {
-    pub fn new(data: SwordData) -> Self {
-        Self {
-            state: SwordState::Inactive,
-            swing: data,
-        }
-    }
 }
 
 impl ProtagItem for Sword {
@@ -81,12 +69,9 @@ impl Sword {
                     }
                 }
             }
-            SwordState::Active {
-                direction: _,
-                frame,
-            } => {
+            SwordState::Active { direction, frame } => {
                 *frame += 1;
-                if *frame >= sword.swing.len() {
+                if *frame >= sword.swing[*direction as usize].len() {
                     sword.state = SwordState::Inactive;
                     return;
                 }
@@ -99,22 +84,6 @@ impl Sword {
         match &sword.state {
             SwordState::Inactive => {}
             SwordState::Active { direction, frame } => {
-                // let keyframe = &sword.keyframes[*frame];
-                // let direction: Vec2 = direction.into();
-                // canvas.draw(
-                //     &Quad,
-                //     DrawParam::new()
-                //         .offset((Vec2::from(keyframe.point()) + Vec2::new(40., 40.)) / 80.)
-                //         .color(
-                //             // if *hit { Color::GREEN } else
-                //             { Color::WHITE },
-                //         )
-                //         .rotation(direction.angle_between(Vec2::Y))
-                //         .scale(Vec2::splat(80.))
-                //         // .dest(Vec2::splat(350.)),
-                //         .dest(level.protag.position + (level.protag.scale / 2.))
-                //         .z(-1),
-                // );
                 let color = if let Some(other) = level
                     .enemies
                     .get_field::<Option<BasicEnemy>>("basic_enemy")
@@ -140,11 +109,13 @@ impl Sword {
         canvas.draw(
             &Quad,
             DrawParam::new()
-                .offset(Vec2::from([0., 0.]) / Vec2::from([40., 40.]).length())
+                // .offset(Vec2::from([0., 0.]) / Vec2::from([40., 40.]).length())
                 // .color(if *hit { Color::GREEN } else { Color::WHITE })
-                .rotation(-Vec2::from(level.protag.direction).angle_between(Vec2::ONE))
-                .scale(Vec2::from([40., 40.]))
-                .dest(level.protag.position + (level.protag.scale / 2.)),
+                // .rotation(-Vec2::from(level.protag.direction).angle_between(Vec2::ONE))
+                // .scale(Vec2::from([40., 40.]))
+                .dest(
+                    level.protag.position, // + (level.protag.scale / 2.)
+                ),
         );
     }
 }

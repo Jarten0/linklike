@@ -17,17 +17,48 @@ pub struct InventoryData {
 
 #[derive(Debug, Clone)]
 pub struct SwordData {
-    swing: [HitboxFrameString; 4],
+    pub swing: [HitboxFrameString; 4],
 }
 
 impl ProtagData {
     pub fn new() -> ProtagData {
-        static SWING_HITBOXES: HitboxFrameStringRef =
-            HitboxFrameStringRef::new(&[HitboxFrameRef::new(&[
-                Hitbox::point_size(Vec2::ZERO, 40.0),
-                Hitbox::point_size(Vec2::ONE, 40.0),
-                Hitbox::point_size(Vec2::new(100.0, 200.0), 40.0),
-            ])]);
+        static SWING_HITBOXES: HitboxFrameStringRef = HitboxFrameStringRef::new(&[
+            HitboxFrameRef::new(&[Hitbox::point_size(
+                Vec2::new(00.0, 80.0),
+                40.0,
+                Direction::Right,
+            )]),
+            HitboxFrameRef::new(&[Hitbox::point_size(
+                Vec2::new(45.0, 60.0),
+                40.0,
+                Direction::Right,
+            )]),
+            HitboxFrameRef::new(&[Hitbox::point_size(
+                Vec2::new(65.0, 40.0),
+                40.0,
+                Direction::Right,
+            )]),
+            HitboxFrameRef::new(&[Hitbox::point_size(
+                Vec2::new(80.0, 20.0),
+                40.0,
+                Direction::Right,
+            )]),
+            HitboxFrameRef::new(&[Hitbox::point_size(
+                Vec2::new(80.0, 00.0),
+                40.0,
+                Direction::Right,
+            )]),
+            HitboxFrameRef::new(&[Hitbox::point_size(
+                Vec2::new(80.0, -20.0),
+                40.0,
+                Direction::Right,
+            )]),
+            HitboxFrameRef::new(&[Hitbox::point_size(
+                Vec2::new(0.0, 0.0),
+                40.0,
+                Direction::Right,
+            )]),
+        ]);
 
         let swing = [
             SWING_HITBOXES.to_direction(Direction::Right),

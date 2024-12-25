@@ -1445,6 +1445,7 @@ dependencies = [
  "const",
  "ggez",
  "glam 0.24.2",
+ "serde",
 ]
 
 [[package]]

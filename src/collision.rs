@@ -1,15 +1,12 @@
 use crate::Direction;
 use bevy_reflect::Reflect;
-use ggez::graphics::{
-    Canvas, Color, DrawParam, GraphicsContext, Mesh, MeshData, Quad, Rect, Vertex,
-};
-use ggez::GameResult;
+use ggez::graphics::{Canvas, Color, DrawParam, GraphicsContext, Mesh, Rect};
+use ggez::{mint, GameResult};
 use glam::Vec2;
-use std::borrow::Borrow;
 use std::convert::AsRef;
 use std::iter::Iterator;
 
-pub enum HitboxTypea {
+pub enum OwnedHitboxType {
     /// A singular hitbox.
     Singular(Hitbox),
     /// A compound of hitboxes, consisting of at least one (but typically more) hitboxes.
@@ -20,12 +17,12 @@ pub enum HitboxTypea {
     String(HitboxFrameString, usize),
 }
 
-impl HitboxTypea {
+impl OwnedHitboxType {
     pub fn as_ref(&self) -> HitboxType {
         match self {
-            HitboxTypea::Singular(singular) => HitboxType::Singular(singular),
-            HitboxTypea::Compound(compound) => HitboxType::Compound(compound.borrow()),
-            HitboxTypea::String(string, us) => HitboxType::BorrowedString(string.borrow(), *us),
+            OwnedHitboxType::Singular(singular) => HitboxType::Singular(singular),
+            OwnedHitboxType::Compound(compound) => HitboxType::Compound(compound.borrow()),
+            OwnedHitboxType::String(string, us) => HitboxType::BorrowedString(string.borrow(), *us),
         }
     }
 }
@@ -70,7 +67,7 @@ impl Hitbox {
     /// Creates a new hitbox, centered at (0,0) + point, with the width and height both equalling the size divided by two.
     ///
     /// Exists as a helper function to make hitbox creation more intuitive
-    pub const fn point_size(point: Vec2, size: f32) -> Self {
+    pub const fn point_size(point: Vec2, size: f32, direction: Direction) -> Self {
         Self {
             rect: Rect {
                 x: point.x - (size / 2.0),
@@ -78,7 +75,7 @@ impl Hitbox {
                 w: size,
                 h: size,
             },
-            direction: Direction::Right,
+            direction,
         }
     }
 
@@ -98,14 +95,63 @@ impl Hitbox {
         self
     }
 
+    /// Rotates the hitbox so that it points in the given direction.
+    ///
+    /// Does nothing if the hitbox is already pointing in that direction.
+    pub const fn as_direction_centered(mut self, direction: Direction) -> Self {
+        // self.rect
+        //     .rotate(direction.to_angle() - self.direction.to_angle());
+        let mut clockwise_rotations = (direction as i32 - self.direction as i32) % 4;
+
+        while clockwise_rotations > 0 {
+            self.rotate_clockwise();
+            clockwise_rotations -= 1;
+        }
+
+        self
+    }
+
     #[inline]
     pub const fn rotate_clockwise(&mut self) {
-        self.rect = Rect {
-            x: -self.rect.y,
-            y: self.rect.x,
-            w: self.rect.h,
-            h: self.rect.w,
-        };
+        let mut points: [[f32; 2]; 4] = [
+            [self.rect.x, self.rect.y],
+            [self.rect.x, self.rect.y + self.rect.h],
+            [self.rect.x + self.rect.w, self.rect.y],
+            [self.rect.x + self.rect.w, self.rect.y + self.rect.h],
+        ];
+
+        points[0] = [points[0][1], -points[0][0]];
+        points[1] = [points[1][1], -points[1][0]];
+        points[2] = [points[2][1], -points[2][0]];
+        points[3] = [points[3][1], -points[3][0]];
+
+        self.rect = Self::rect_from_points(points);
+    }
+
+    #[inline]
+    pub const fn rect_from_points(points: [[f32; 2]; 4]) -> Rect {
+        let min_x = min(
+            min(points[0][0], points[1][0]),
+            min(points[2][0], points[3][0]),
+        );
+        let min_y = min(
+            min(points[0][1], points[1][1]),
+            min(points[2][1], points[3][1]),
+        );
+        let max_x = max(
+            max(points[0][0], points[1][0]),
+            max(points[2][0], points[3][0]),
+        );
+        let max_y = max(
+            max(points[0][1], points[1][1]),
+            max(points[2][1], points[3][1]),
+        );
+        Rect {
+            x: min_x,
+            y: min_y,
+            w: max_x - min_x,
+            h: max_y - min_y,
+        }
     }
 
     pub fn colliding(&self, other: HitboxType, offset: Vec2, other_offset: Vec2) -> bool {
@@ -179,7 +225,7 @@ pub struct HitboxFrame(Vec<Hitbox>);
 
 impl HitboxFrame {
     fn from_hitboxes(value: &[Hitbox]) -> Self {
-        HitboxFrameRef::new(value).to_owned()
+        Self(value.to_vec())
     }
 
     fn borrow(&self) -> HitboxFrameRef {
@@ -270,25 +316,6 @@ impl HitboxFrameString {
     }
 }
 
-pub static TEST_HITBOX_STRING: HitboxFrameStringRef = HitboxFrameStringRef::new(&[
-    HitboxFrameRef::new(&[
-        Hitbox::point_size(Vec2::ZERO, 5.0),
-        Hitbox::point_size(Vec2::new(25.0, 25.0), 10.0),
-    ]),
-    HitboxFrameRef::new(&[
-        Hitbox::point_size(Vec2::new(50.0, 25.0), 15.0),
-        Hitbox::point_size(Vec2::new(75.0, 25.0), 20.0),
-    ]),
-    HitboxFrameRef::new(&[
-        Hitbox::point_size(Vec2::new(50.0, 25.0), 15.0),
-        Hitbox::point_size(Vec2::new(75.0, 25.0), 20.0),
-    ]),
-    HitboxFrameRef::new(&[
-        Hitbox::point_size(Vec2::new(50.0, 25.0), 15.0),
-        Hitbox::point_size(Vec2::new(75.0, 25.0), 20.0),
-    ]),
-]);
-
 /// A set of [`Hitbox`]es, made to operate together as one more complex hitbox.
 ///
 /// The second item ([`Rect`]) is the bounding box, cached with the frame to avoid recalculating it every collision.
@@ -355,7 +382,7 @@ impl<'hitbox> HitboxFrameRef<'hitbox> {
     {
         self.0
             .into_iter()
-            .map(|value| value.clone().as_direction(direction))
+            .map(|value| value.clone().as_direction_centered(direction))
             .collect::<B>()
     }
 
@@ -419,7 +446,7 @@ impl<'hitbox> HitboxFrameRef<'hitbox> {
 }
 
 impl HitboxFrameRef<'_> {
-    fn to_owned(&self) -> HitboxFrame {
+    pub fn to_owned(&self) -> HitboxFrame {
         HitboxFrame::from_hitboxes(self.0)
     }
 }

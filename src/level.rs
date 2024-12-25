@@ -1,8 +1,7 @@
 use std::any::{Any, TypeId};
 
 use crate::assets::StaticAssets;
-use crate::collision::TEST_HITBOX_STRING;
-use crate::enemies::{basic_enemy::BasicEnemy, Enemy, EnemyContainer};
+use crate::npc::{basic_enemy::BasicEnemy, Enemy, EnemyContainer};
 use crate::protag::Protag;
 use bevy_reflect::{GetField, PartialReflect, Reflect, ReflectMut, ReflectRef};
 use ggez::graphics::{Canvas, Color};
@@ -16,7 +15,6 @@ pub struct Level {
     #[reflect(ignore)]
     #[reflect(default = "crate::Game::static_assets")]
     pub static_assets: &'static StaticAssets,
-    i: usize,
 }
 
 impl Level {
@@ -33,7 +31,6 @@ impl Level {
         let mut level = Self {
             protag: Protag::new(&assets.protag, ctx),
             enemies: EnemyContainer::new(),
-            i: 0,
             static_assets: assets,
         };
 
@@ -54,19 +51,6 @@ impl Level {
         Protag::draw(self, ctx, canvas)?;
 
         EnemyContainer::draw(self, ctx, canvas)?;
-
-        crate::collision::TEST_HITBOX_STRING.draw(
-            &mut ctx.gfx,
-            canvas,
-            self.i,
-            Vec2::ONE * 59.0,
-            Color::MAGENTA,
-        )?;
-
-        self.i += 1;
-        if self.i >= TEST_HITBOX_STRING.len() {
-            self.i = 0;
-        }
 
         Ok(())
     }

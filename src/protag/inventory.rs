@@ -20,7 +20,7 @@ impl Inventory {
     pub fn new() -> Self {
         Self {
             current_item: ItemType::Sword,
-            sword: Sword::new(),
+            sword: Sword::default(),
         }
     }
 
