@@ -31,18 +31,14 @@ impl ProtagController {
             level.protag.position += input.normalize_or_zero() * PLAYER_SPEED
         }
 
-        Self::handle_enemy_collision(
-            &mut level.protag,
-            level
-                .enemies
-                .get_field_mut::<Option<BasicEnemy>>("basic_enemy")
-                .unwrap()
-                .as_mut()
-                .unwrap(),
-        )
-        .unwrap();
-
-        // let basic_enemy = BasicEnemy::access_mut(&mut level.enemies, "basic_enemy").unwrap();
+        if let Some(enemy) = level
+            .enemies
+            .get_field_mut::<Option<BasicEnemy>>("basic_enemy")
+            .unwrap()
+            .as_mut()
+        {
+            Self::handle_enemy_collision(&mut level.protag, enemy).unwrap();
+        };
     }
 
     pub(crate) fn handle_enemy_collision(

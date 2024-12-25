@@ -112,6 +112,24 @@ impl Direction {
     }
 }
 
+impl<T: Into<ggez::mint::Vector2<f32>>> From<T> for Direction {
+    fn from(value: T) -> Self {
+        let vec = glam::Vec2::from(value.into()).normalize();
+
+        if vec.x >= vec.y.abs() {
+            Self::Right
+        } else if vec.y <= -vec.x.abs() {
+            Self::Up
+        } else if vec.x <= -vec.y.abs() {
+            Self::Left
+        } else if vec.y >= vec.x.abs() {
+            Self::Down
+        } else {
+            panic!("huh??")
+        }
+    }
+}
+
 impl From<Direction> for glam::Vec2 {
     fn from(value: Direction) -> Self {
         match value {

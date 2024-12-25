@@ -3,6 +3,7 @@ use bevy_reflect::Reflect;
 use ggez::graphics::{Canvas, Color, DrawParam, GraphicsContext, Mesh, Rect};
 use ggez::{mint, GameResult};
 use glam::Vec2;
+use lerp::Lerp;
 use std::convert::AsRef;
 use std::iter::Iterator;
 
@@ -40,34 +41,21 @@ pub enum HitboxType<'string, 'frame, 'hitbox> {
 }
 
 // Hitboxes can be rotated around an origin
-#[derive(Debug, Clone, Reflect, PartialEq)]
+#[derive(Debug, Default, Clone, Reflect, PartialEq)]
 pub struct Hitbox {
     #[reflect(ignore)]
     rect: Rect,
-    direction: Direction,
-}
-
-impl Default for Hitbox {
-    fn default() -> Self {
-        Self {
-            rect: Default::default(),
-            direction: Direction::Right,
-        }
-    }
 }
 
 impl Hitbox {
     pub const fn new(rect: Rect) -> Self {
-        Self {
-            rect,
-            direction: Direction::Right,
-        }
+        Self { rect }
     }
 
     /// Creates a new hitbox, centered at (0,0) + point, with the width and height both equalling the size divided by two.
     ///
     /// Exists as a helper function to make hitbox creation more intuitive
-    pub const fn point_size(point: Vec2, size: f32, direction: Direction) -> Self {
+    pub const fn point_size(point: Vec2, size: f32) -> Self {
         Self {
             rect: Rect {
                 x: point.x - (size / 2.0),
@@ -75,17 +63,19 @@ impl Hitbox {
                 w: size,
                 h: size,
             },
-            direction,
         }
     }
 
     /// Rotates the hitbox so that it points in the given direction.
     ///
     /// Does nothing if the hitbox is already pointing in that direction.
-    pub const fn as_direction(mut self, direction: Direction) -> Self {
+    pub const fn as_direction(
+        mut self,
+        direction: Direction,
+        mut clockwise_rotations: i32,
+    ) -> Self {
         // self.rect
         //     .rotate(direction.to_angle() - self.direction.to_angle());
-        let mut clockwise_rotations = (direction as i32) - (self.direction as i32) % 4;
 
         while clockwise_rotations > 0 {
             self.rotate_clockwise();
@@ -98,10 +88,13 @@ impl Hitbox {
     /// Rotates the hitbox so that it points in the given direction.
     ///
     /// Does nothing if the hitbox is already pointing in that direction.
-    pub const fn as_direction_centered(mut self, direction: Direction) -> Self {
+    pub const fn as_direction_centered(
+        mut self,
+        direction: Direction,
+        mut clockwise_rotations: i32,
+    ) -> Self {
         // self.rect
         //     .rotate(direction.to_angle() - self.direction.to_angle());
-        let mut clockwise_rotations = (direction as i32 - self.direction as i32) % 4;
 
         while clockwise_rotations > 0 {
             self.rotate_clockwise();
@@ -152,6 +145,26 @@ impl Hitbox {
             w: max_x - min_x,
             h: max_y - min_y,
         }
+    }
+
+    pub fn lerp(&self, other: &Hitbox, t: f32) -> Hitbox {
+        Hitbox::new(Rect {
+            x: self.rect.x.lerp(other.rect.x, t),
+            y: self.rect.y.lerp(other.rect.y, t),
+            w: self.rect.w.lerp(other.rect.w, t),
+            h: self.rect.h.lerp(other.rect.h, t),
+        })
+    }
+
+    pub fn twine_lerp(&self, target: &Hitbox, t: f32, twine: f32) -> Hitbox {
+        let target_x = self.rect.x.lerp(target.rect.x, t);
+        let target_y = self.rect.y.lerp(target.rect.y, t);
+        Hitbox::new(Rect {
+            x: self.rect.x + ((target_x - self.rect.x) * twine),
+            y: self.rect.y + ((target_y - self.rect.y) * twine),
+            w: self.rect.w.lerp(target.rect.w, t),
+            h: self.rect.h.lerp(target.rect.h, t),
+        })
     }
 
     pub fn colliding(&self, other: HitboxType, offset: Vec2, other_offset: Vec2) -> bool {
@@ -220,21 +233,42 @@ impl Hitbox {
     }
 }
 
-#[derive(Debug, Default, Reflect, Clone, PartialEq)]
-pub struct HitboxFrame(Vec<Hitbox>);
+#[derive(Debug, Reflect, Clone, PartialEq)]
+pub struct HitboxFrame(Vec<Hitbox>, Direction);
 
 impl HitboxFrame {
-    fn from_hitboxes(value: &[Hitbox]) -> Self {
-        Self(value.to_vec())
+    pub fn new(value: &[Hitbox], direction: Direction) -> Self {
+        Self(value.to_vec(), direction)
     }
 
-    fn borrow(&self) -> HitboxFrameRef {
-        HitboxFrameRef::new(&self.0)
+    /// Returns a list of hitboxes, rotated as the given direction from the given frame.
+    ///
+    /// [`HitboxFrame`] stores a reference to the hitboxes, and does not store them itself.
+    /// So something else needs to take ownership of the hitboxes. Thus, this function returns
+    /// an iterator which you should collect into somewhere yourself. Then, you can use
+    /// [`HitboxFrame::new`] with a slice of the collected hitboxes to get the new [`HitboxFrame`]
+    pub fn as_direction(&self, direction: Direction) -> Self {
+        let mut clockwise_rotations = (direction as i32 - self.1 as i32) % 4;
+
+        let collect = self
+            .0
+            .iter()
+            .map(|value| {
+                value
+                    .clone()
+                    .as_direction_centered(direction, clockwise_rotations)
+            })
+            .collect();
+        Self(collect, direction)
+    }
+
+    pub fn borrow(&self) -> HitboxFrameRef {
+        HitboxFrameRef::from_hitboxes(self.1, &self.0)
     }
 }
 
 #[derive(Debug, Default, Clone, Reflect, PartialEq)]
-pub struct HitboxFrameString(Vec<HitboxFrame>);
+pub struct HitboxFrameString(pub Vec<HitboxFrame>);
 
 impl HitboxFrameString {
     pub fn new(frames: Vec<HitboxFrame>) -> Self {
@@ -249,41 +283,37 @@ impl HitboxFrameString {
         )
     }
 
-    pub fn from_hitboxes(zero: impl IntoIterator<Item = impl AsRef<[Hitbox]>>) -> Self {
+    pub fn from_hitboxes(
+        zero: impl IntoIterator<Item = impl AsRef<[Hitbox]>>,
+        direction: Direction,
+    ) -> Self {
         let zero: Vec<HitboxFrame> = zero
             .into_iter()
-            .map(|value| HitboxFrame::from_hitboxes(value.as_ref()))
+            .map(|value| HitboxFrame::new(value.as_ref(), direction))
             .collect();
 
         Self(zero)
     }
 
-    // pub fn from_hitboxes(zero: &[&[Hitbox]]) -> Self {
-    //     let zero: Vec<HitboxFrame> = zero
-    //         .into_iter()
-    //         .map(|value| HitboxFrame::from_hitboxes(value))
-    //         .collect();
-
-    //     Self(zero)
-    // }
-
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
-    pub fn as_direction<B, I>(
+    pub fn as_direction(
         hitbox_frame_string: HitboxFrameStringRef<'_, '_>,
         direction: Direction,
-    ) -> B
-    where
-        B: for<'a> FromIterator<I>,
-        I: FromIterator<Hitbox> + AsRef<[Hitbox]>,
+    ) -> Self
+// where
+    //     B: for<'a> FromIterator<I>,
+    //     I: FromIterator<Hitbox> + AsRef<[Hitbox]>,
     {
-        hitbox_frame_string
-            .0
-            .iter()
-            .map(|value: &HitboxFrameRef<'_>| value.as_direction(direction))
-            .collect::<B>()
+        Self(
+            hitbox_frame_string
+                .0
+                .into_iter()
+                .map(|value: &HitboxFrameRef<'_>| value.to_owned().as_direction(direction))
+                .collect(),
+        )
     }
 
     pub fn colliding(
@@ -323,8 +353,8 @@ impl HitboxFrameString {
 /// See [`Hitbox`] for details on each individual hitbox.
 ///
 /// Also see [`HitboxFrameString`] for a set of [`HitboxFrame`]'s that can be interchanged frame-by-frame.
-#[derive(Debug, Default, Reflect, Clone, Copy, PartialEq)]
-pub struct HitboxFrameRef<'hitbox>(pub &'hitbox [Hitbox], #[reflect(ignore)] Rect);
+#[derive(Debug, Reflect, Clone, Copy, PartialEq)]
+pub struct HitboxFrameRef<'hitbox>(pub &'hitbox [Hitbox], Direction, #[reflect(ignore)] Rect);
 
 #[inline]
 const fn min(a: f32, b: f32) -> f32 {
@@ -343,10 +373,44 @@ const fn max(a: f32, b: f32) -> f32 {
 }
 
 impl<'hitbox> HitboxFrameRef<'hitbox> {
-    pub const fn new(hitboxes: &'hitbox [Hitbox]) -> Self {
-        Self(hitboxes, HitboxFrameRef::calculate_bounding_box(hitboxes))
+    pub const fn right(hitboxes: &'hitbox [Hitbox]) -> Self {
+        Self(
+            hitboxes,
+            Direction::Right,
+            HitboxFrameRef::calculate_bounding_box(hitboxes),
+        )
+    }
+    pub const fn up(hitboxes: &'hitbox [Hitbox]) -> Self {
+        Self(
+            hitboxes,
+            Direction::Up,
+            HitboxFrameRef::calculate_bounding_box(hitboxes),
+        )
+    }
+    pub const fn left(hitboxes: &'hitbox [Hitbox]) -> Self {
+        Self(
+            hitboxes,
+            Direction::Left,
+            HitboxFrameRef::calculate_bounding_box(hitboxes),
+        )
+    }
+    pub const fn down(hitboxes: &'hitbox [Hitbox]) -> Self {
+        Self(
+            hitboxes,
+            Direction::Down,
+            HitboxFrameRef::calculate_bounding_box(hitboxes),
+        )
     }
 
+    pub const fn from_hitboxes(direction: Direction, hitboxes: &'hitbox [Hitbox]) -> Self {
+        Self(
+            hitboxes,
+            direction,
+            HitboxFrameRef::calculate_bounding_box(hitboxes),
+        )
+    }
+
+    /// Calculate one bounding box that encompasses all of the given hitboxes
     pub const fn calculate_bounding_box(hitboxes: &'hitbox [Hitbox]) -> Rect {
         let mut bounding_box: Rect = Rect::zero();
         let mut i = 0;
@@ -368,22 +432,6 @@ impl<'hitbox> HitboxFrameRef<'hitbox> {
             i += 1;
         }
         bounding_box
-    }
-
-    /// Returns a list of hitboxes, rotated as the given direction from the given frame.
-    ///
-    /// [`HitboxFrame`] stores a reference to the hitboxes, and does not store them itself.
-    /// So something else needs to take ownership of the hitboxes. Thus, this function returns
-    /// an iterator which you should collect into somewhere yourself. Then, you can use
-    /// [`HitboxFrame::new`] with a slice of the collected hitboxes to get the new [`HitboxFrame`]
-    pub fn as_direction<B>(&self, direction: Direction) -> B
-    where
-        B: FromIterator<Hitbox> + AsRef<[Hitbox]> + 'hitbox,
-    {
-        self.0
-            .into_iter()
-            .map(|value| value.clone().as_direction_centered(direction))
-            .collect::<B>()
     }
 
     pub fn colliding(&self, other: HitboxType, offset: Vec2, other_offset: Vec2) -> bool {
@@ -416,8 +464,8 @@ impl<'hitbox> HitboxFrameRef<'hitbox> {
     ) -> bool {
         // wouldve named offset_bounding_box, but this more turse way is much nicer with formatting
         let offset_box = |b: Rect, o: Vec2| Rect::new(b.x + o.x, b.y + o.y, b.w, b.h);
-        let self_bounding_box = offset_box(self.1.clone(), offset);
-        let other_bounding_box = offset_box(compound.1.clone(), other_offset);
+        let self_bounding_box = offset_box(self.2.clone(), offset);
+        let other_bounding_box = offset_box(compound.2.clone(), other_offset);
 
         if !self_bounding_box.overlaps(&other_bounding_box) {
             return false;
@@ -447,7 +495,7 @@ impl<'hitbox> HitboxFrameRef<'hitbox> {
 
 impl HitboxFrameRef<'_> {
     pub fn to_owned(&self) -> HitboxFrame {
-        HitboxFrame::from_hitboxes(self.0)
+        HitboxFrame::new(self.0, self.1)
     }
 }
 
@@ -477,7 +525,13 @@ impl HitboxType<'_, '_, '_> {
 #[derive(Debug, Default, Reflect, Clone, Copy, PartialEq)]
 pub struct HitboxFrameStringRef<'string, 'hitbox>(pub &'string [HitboxFrameRef<'hitbox>]);
 
+pub type StaticHitboxFrameString = HitboxFrameStringRef<'static, 'static>;
+
 impl<'string, 'hitbox> HitboxFrameStringRef<'string, 'hitbox> {
+    pub fn new_with_direction(zero: &'string [HitboxFrameRef<'hitbox>]) -> Self {
+        Self(zero)
+    }
+
     pub const fn new(zero: &'string [HitboxFrameRef<'hitbox>]) -> Self {
         Self(zero)
     }
@@ -487,20 +541,12 @@ impl<'string, 'hitbox> HitboxFrameStringRef<'string, 'hitbox> {
     }
 
     pub fn to_direction(self, direction: Direction) -> HitboxFrameString {
-        HitboxFrameString::from_hitboxes(
-            self.as_direction::<Vec<Vec<Hitbox>>, Vec<Hitbox>>(direction),
+        HitboxFrameString::new(
+            self.0
+                .iter()
+                .map(|value: &HitboxFrameRef<'_>| value.to_owned().as_direction(direction))
+                .collect(),
         )
-    }
-
-    pub fn as_direction<B, I>(self, direction: Direction) -> B
-    where
-        B: for<'a> FromIterator<I>,
-        I: FromIterator<Hitbox> + AsRef<[Hitbox]>,
-    {
-        self.0
-            .iter()
-            .map(|value: &HitboxFrameRef<'_>| value.as_direction(direction))
-            .collect::<B>()
     }
 
     pub fn colliding(

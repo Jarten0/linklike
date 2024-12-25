@@ -1,5 +1,7 @@
 use player::ProtagData;
 
+use crate::npc::advanced_enemy::AdvancedEnemyData;
+
 pub mod player;
 
 /// Storage container for runtime generated data that lasts for the entirety of the program.
@@ -18,12 +20,14 @@ pub mod player;
 #[derive(Debug)]
 pub struct StaticAssets {
     pub protag: ProtagData,
+    pub advanced_enemy: AdvancedEnemyData,
 }
 
 impl StaticAssets {
     pub(crate) fn new() -> Self {
         Self {
             protag: ProtagData::new(),
+            advanced_enemy: AdvancedEnemyData::new(),
         }
     }
 }

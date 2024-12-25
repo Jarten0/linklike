@@ -21,13 +21,6 @@ impl Level {
     pub fn initialize_assets(assets: &mut StaticAssets) {}
 
     pub fn new(ctx: &mut Context, assets: &'static StaticAssets) -> Self {
-        // let data: LevelData = LevelData {
-        //     protag: ProtagData {
-        //         start_pos: Vec2::ONE * 500.0,
-        //     },
-        //     enemies: vec![(<BasicEnemy as Enemy>::create, "basic_enemy")],
-        // };
-
         let mut level = Self {
             protag: Protag::new(&assets.protag, ctx),
             enemies: EnemyContainer::new(),

@@ -1,8 +1,11 @@
 use super::ProtagItem;
-use crate::collision::{Hitbox, HitboxFrameRef, HitboxFrameString, HitboxFrameStringRef};
-use crate::npc::basic_enemy::BasicEnemy;
-use crate::npc::Enemy;
+use crate::collision::{
+    Hitbox, HitboxFrameRef, HitboxFrameString, HitboxFrameStringRef, HitboxType,
+};
 use crate::level::Level;
+use crate::npc::advanced_enemy::AdvancedEnemy;
+use crate::npc::basic_enemy::BasicEnemy;
+use crate::npc::{DamageTransfer, Enemy};
 use crate::{Direction, Game};
 use bevy_reflect::prelude::ReflectDefault;
 use bevy_reflect::{GetField, Reflect};
@@ -75,6 +78,20 @@ impl Sword {
                     sword.state = SwordState::Inactive;
                     return;
                 }
+
+                if let Some(other) = &mut level.enemies.basic_enemy {
+                    if sword.swing[*direction as usize].colliding(
+                        *frame,
+                        HitboxType::Singular(&other.hurtbox),
+                        level.protag.position,
+                        other.position,
+                    ) {
+                        other.on_hit(DamageTransfer {
+                            damage: 5.,
+                            weight: 1.,
+                        });
+                    }
+                };
             }
         }
     }
@@ -87,6 +104,48 @@ impl Sword {
                 let color = if let Some(other) = level
                     .enemies
                     .get_field::<Option<BasicEnemy>>("basic_enemy")
+                    .unwrap_or(&mut None)
+                {
+                    sword.swing[*direction as usize]
+                        .colliding(
+                            *frame,
+                            other.get_hitbox().unwrap().0,
+                            level.protag.position,
+                            other.get_hitbox().unwrap().1,
+                        )
+                        .then_some(Color::RED)
+                        .unwrap_or(Color::WHITE)
+                } else if let Some(other) = level
+                    .enemies
+                    .get_field::<Option<BasicEnemy>>("basic_enemy2")
+                    .unwrap_or(&mut None)
+                {
+                    sword.swing[*direction as usize]
+                        .colliding(
+                            *frame,
+                            other.get_hitbox().unwrap().0,
+                            level.protag.position,
+                            other.get_hitbox().unwrap().1,
+                        )
+                        .then_some(Color::RED)
+                        .unwrap_or(Color::WHITE)
+                } else if let Some(other) = level
+                    .enemies
+                    .get_field::<Option<BasicEnemy>>("basic_enemy3")
+                    .unwrap_or(&mut None)
+                {
+                    sword.swing[*direction as usize]
+                        .colliding(
+                            *frame,
+                            other.get_hitbox().unwrap().0,
+                            level.protag.position,
+                            other.get_hitbox().unwrap().1,
+                        )
+                        .then_some(Color::RED)
+                        .unwrap_or(Color::WHITE)
+                } else if let Some(other) = level
+                    .enemies
+                    .get_field::<Option<AdvancedEnemy>>("advanced_enemy")
                     .unwrap_or(&mut None)
                 {
                     sword.swing[*direction as usize]
