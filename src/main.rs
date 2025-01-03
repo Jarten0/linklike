@@ -5,6 +5,7 @@ use std::sync::OnceLock;
 
 use assets::StaticAssets;
 use bevy_reflect::Reflect;
+use ggez::conf::{WindowMode, WindowSetup};
 use ggez::event::EventHandler;
 use ggez::graphics::{Canvas, Color};
 use ggez::Context;
@@ -18,9 +19,17 @@ pub mod get;
 pub mod level;
 pub mod npc;
 pub mod protag;
+pub mod sprite;
 
 fn main() {
     let (mut ctx, event) = ggez::ContextBuilder::new("linklike", "jarten")
+        .window_mode(
+            WindowMode::default()
+                .borderless(false)
+                .resizable(true)
+                .min_dimensions(1280.0, 720.0),
+        )
+        .window_setup(WindowSetup::default().title("linklike debug build"))
         .build()
         .expect("could not build :(");
 

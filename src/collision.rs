@@ -248,7 +248,7 @@ impl HitboxFrame {
     /// an iterator which you should collect into somewhere yourself. Then, you can use
     /// [`HitboxFrame::new`] with a slice of the collected hitboxes to get the new [`HitboxFrame`]
     pub fn as_direction(&self, direction: Direction) -> Self {
-        let mut clockwise_rotations = (direction as i32 - self.1 as i32) % 4;
+        let clockwise_rotations = (direction as i32 - self.1 as i32) % 4;
 
         let collect = self
             .0
